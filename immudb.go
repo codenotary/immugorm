@@ -16,7 +16,6 @@ const DriverName = "immudb"
 type Dialector struct {
 	DriverName string
 	opts       *client.Options
-	cli        client.ImmuClient
 }
 
 func Open(opts *client.Options) gorm.Dialector {
@@ -45,7 +44,18 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 		db.ClauseBuilders[k] = v
 	}
 
+	db.Config.SkipDefaultTransaction = true
+	db.Config.DisableAutomaticPing = true
+	db.Config.AllowGlobalUpdate = true
+
+	db.Callback().Delete().Before("gorm:delete").Register("immudb:before_delete", unsupportDelete)
+	db.Callback().Query().After("gorm:query").Register("immudb:after_query", dialector.verify)
+
 	return
+}
+
+func unsupportDelete(db *gorm.DB) {
+	db.AddError(ErrDeleteNotImplemented)
 }
 
 func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
@@ -102,7 +112,7 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 			cv := clause.Values{}
 			for _, a := range c.Expression.(clause.Set) {
 				cv.Columns = []clause.Column{pKeyCol, a.Column}
-				cv.Values = [][]interface{}{{a.Value, pKeyVal}}
+				cv.Values = [][]interface{}{{pKeyVal, a.Value}}
 			}
 			nc := clause.Clause{
 				Name:                "",
@@ -226,12 +236,29 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 	return string(field.DataType)
 }
 
-func (dialectopr Dialector) SavePoint(tx *gorm.DB, name string) error {
+func (dialector Dialector) SavePoint(tx *gorm.DB, name string) error {
 	return ErrNotImplemented
 }
 
-func (dialectopr Dialector) RollbackTo(tx *gorm.DB, name string) error {
+func (dialector Dialector) RollbackTo(tx *gorm.DB, name string) error {
 	return ErrNotImplemented
+}
+
+func (dialector Dialector) GetImmuclient(db *gorm.DB) (client.ImmuClient, error) {
+	sqlDb, err := db.DB()
+	if err != nil {
+		db.AddError(err)
+	}
+
+	dri := sqlDb.Driver()
+	name := stdlib.GetUri(dialector.opts)
+
+	conn, err := dri.Open(name)
+	if err != nil {
+		db.AddError(err)
+	}
+
+	return conn.(*stdlib.Conn).GetImmuClient(), nil
 }
 
 type columnConverter struct{}
@@ -244,38 +271,4 @@ type valueConverter struct{}
 
 func (cc valueConverter) ConvertValue(v interface{}) (driver.Value, error) {
 	return nil, nil
-}
-
-/*type ImmuNamer struct {}
-
-func (i *ImmuNamer)TableName(table string) string{
-	return strings.ToLower(table)
-}
-func (i *ImmuNamer)SchemaName(table string) string{
-	return ""
-}
-func (i *ImmuNamer)ColumnName(table, column string) string{
-	return strings.ToLower(column)
-}
-func (i *ImmuNamer)JoinTableName(table string) string{
-	return table
-}
-func (i *ImmuNamer)RelationshipFKName(relationship schema.Relationship) string{
-	return ""
-}
-func (i *ImmuNamer)CheckerName(table, column string) string{
-	return ""
-}
-func (i *ImmuNamer)IndexName(table, column string) string{
-	return ""
-}*/
-
-func (dialector Dialector) verify(db *gorm.DB) {
-	//st := db.Statement.SQL.String()
-	//rows, err := db.Rows()
-	//db.AddError(errors.Errorf("tampered %s", st))
-}
-
-func upsert(db *gorm.DB) {
-	println("CIPPA")
 }
