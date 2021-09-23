@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
-	"github.com/codenotary/immudb/pkg/stdlib"
 	"strings"
 
 	"gorm.io/gorm"
@@ -19,23 +18,7 @@ type Migrator struct {
 }
 
 func (m Migrator) GetImmuclient() (client.ImmuClient, error) {
-	sqlDb, err := m.DB.DB()
-	if err != nil {
-		return nil, err
-	}
-
-	dri := sqlDb.Driver()
-	name := stdlib.GetUri(m.Dialector.(Dialector).opts)
-
-	conn, err := dri.Open(name)
-	if err != nil {
-		return nil, err
-	}
-
-	immuConn := conn.(*stdlib.Conn)
-	immucli := immuConn.GetImmuClient()
-
-	return immucli, nil
+	return m.Dialector.(Dialector).GetImmuclient(m.DB)
 }
 
 func (m Migrator) CreateTable(values ...interface{}) error {

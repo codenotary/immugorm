@@ -1,6 +1,7 @@
 package immudb
 
 import (
+	"context"
 	"database/sql/driver"
 	"github.com/codenotary/immudb/pkg/client"
 	"github.com/codenotary/immudb/pkg/stdlib"
@@ -259,14 +260,18 @@ func (dialector Dialector) GetImmuclient(db *gorm.DB) (client.ImmuClient, error)
 	}
 
 	dri := sqlDb.Driver()
-	name := stdlib.GetUri(dialector.opts)
-
-	conn, err := dri.Open(name)
+	con, err := dri.(*stdlib.Driver).OpenConnectorByOptions(dialector.opts)
 	if err != nil {
-		db.AddError(err)
+		return nil, err
+	}
+	conn, err := con.Connect(context.TODO())
+	if err != nil {
+		return nil, err
 	}
 
-	return conn.(*stdlib.Conn).GetImmuClient(), nil
+	immuConn := conn.(*stdlib.Conn)
+
+	return immuConn.GetImmuClient(), nil
 }
 
 type columnConverter struct{}
