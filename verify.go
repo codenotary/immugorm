@@ -13,6 +13,7 @@ func (dialector Dialector) verify(db *gorm.DB) {
 	rows, err := db.Rows()
 	if err != nil {
 		db.AddError(err)
+		return
 	}
 	dbName := dialector.opts.Database
 	tableName := db.Statement.Table
@@ -21,16 +22,19 @@ func (dialector Dialector) verify(db *gorm.DB) {
 	r, err := getImmuRowFromSQLRow(dbName, tableName, rows)
 	if err != nil {
 		db.AddError(err)
+		return
 	}
 
 	immucli, err := dialector.GetImmuclient(db)
 	if err != nil {
 		db.AddError(err)
+		return
 	}
 
 	pkey, err := getPrimaryKeyFromRow(quoteImmuCol(pkeyName, dbName, tableName), r)
 	if err != nil {
 		db.AddError(err)
+		return
 	}
 
 	err = immucli.VerifyRow(context.Background(), r, tableName, pkey)
@@ -41,6 +45,7 @@ func (dialector Dialector) verify(db *gorm.DB) {
 			db.AddError(err)
 		}
 	}
+	return
 }
 
 func getPrimaryKeyFromRow(pkeyName string, r *immuschema.Row) ([]*immuschema.SQLValue, error) {

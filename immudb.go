@@ -13,18 +13,24 @@ import (
 
 const DriverName = "immudb"
 
+type ImmuGormConfig struct {
+	Verify bool
+}
+
 type Dialector struct {
 	DriverName string
 	opts       *client.Options
+	cfg        ImmuGormConfig
 }
 
-func Open(opts *client.Options) gorm.Dialector {
+func Open(opts *client.Options, cfg ImmuGormConfig) gorm.Dialector {
 	if opts == nil {
 		opts = client.DefaultOptions()
 	}
 	return &Dialector{
 		DriverName: DriverName,
 		opts:       opts,
+		cfg:        cfg,
 	}
 }
 
@@ -49,7 +55,9 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 	db.Config.AllowGlobalUpdate = true
 
 	db.Callback().Delete().Before("gorm:delete").Register("immudb:before_delete", unsupportDelete)
-	db.Callback().Query().After("gorm:query").Register("immudb:after_query", dialector.verify)
+	if dialector.cfg.Verify {
+		db.Callback().Query().After("gorm:query").Register("immudb:after_query", dialector.verify)
+	}
 
 	return
 }
