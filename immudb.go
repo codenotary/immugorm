@@ -59,7 +59,6 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 	if dialector.cfg.Verify {
 		db.Callback().Query().After("gorm:query").Register("immudb:after_query", dialector.verify)
 	}
-
 	return
 }
 
@@ -69,23 +68,7 @@ func unsupportDelete(db *gorm.DB) {
 
 func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	return map[string]clause.ClauseBuilder{
-		"SELECT": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
-		},
-		"INSERT": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
-		},
-		"UPDATE": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-
+		"UPDATE": func(c clause.Clause, b clause.Builder) {
 			upsert := Upsert{
 				Table: currentTable,
 			}
@@ -100,13 +83,8 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 			}
 			nc.Build(b)
 		},
-		"SET": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-
-			st := builder.(*gorm.Statement)
-
+		"SET": func(c clause.Clause, b clause.Builder) {
+			st := b.(*gorm.Statement)
 			var eq clause.Eq
 			for _, e1 := range st.Clauses["WHERE"].Expression.(clause.Where).Exprs {
 				eq = e1.(clause.Eq)
@@ -119,10 +97,19 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 				Name: eq.Column.(string),
 			}
 			cv := clause.Values{}
+
+			cv.Columns = []clause.Column{pKeyCol}
+			cv.Values = [][]interface{}{{pKeyVal}}
+
 			for _, a := range c.Expression.(clause.Set) {
-				cv.Columns = []clause.Column{pKeyCol, a.Column}
-				cv.Values = [][]interface{}{{pKeyVal, a.Value}}
+				cv.Columns = append(cv.Columns, a.Column)
+
 			}
+
+			for _, a := range c.Expression.(clause.Set) {
+				cv.Values[0] = append(cv.Values[0], []interface{}{a.Value})
+			}
+
 			nc := clause.Clause{
 				Name:                "",
 				BeforeExpression:    c.BeforeExpression,
@@ -133,17 +120,7 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 			}
 			nc.Build(b)
 		},
-		"VALUES": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
-		},
-		"WHERE": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-
+		"WHERE": func(c clause.Clause, b clause.Builder) {
 			var ne []clause.Expression
 			for _, e := range c.Expression.(clause.Where).Exprs {
 				switch ie := e.(type) {
@@ -167,31 +144,6 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 				Builder: c.Builder,
 			}
 			nc.Build(b)
-		},
-		"ORDER BY": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
-		},
-
-		"GROUP BY": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
-		},
-		"LIMIT": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
-		},
-		"FOR": func(c clause.Clause, builder clause.Builder) {
-			b := &Stmt{
-				Builder: builder,
-			}
-			c.Build(b)
 		},
 	}
 }

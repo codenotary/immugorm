@@ -19,6 +19,13 @@ func (dialector Dialector) verify(db *gorm.DB) {
 	tableName := db.Statement.Table
 	pkeyName := db.Statement.Schema.PrioritizedPrimaryField.DBName
 
+	if from, ok := db.Statement.Clauses["FROM"]; ok {
+		if _, ok := from.AfterExpression.(TimeTravel); ok {
+			db.AddError(ErrTimeTravelNotAvailable)
+			return
+		}
+	}
+
 	r, err := getImmuRowFromSQLRow(dbName, tableName, rows)
 	if err != nil {
 		db.AddError(err)
