@@ -24,7 +24,7 @@ func TestSimpleQuery(t *testing.T) {
 	defer os.Remove(".state-")
 
 	opts := client.DefaultOptions().WithDialOptions(
-		&[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
+		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
 	).WithTokenService(tokenservice.NewInmemoryTokenService())
 
 	opts.Username = "immudb"
@@ -68,6 +68,54 @@ func TestSimpleQuery(t *testing.T) {
 	require.Equal(t, err, ErrDeleteNotImplemented)
 }
 
+func TestMigrationWithPreviousData(t *testing.T) {
+	options := server.DefaultOptions().WithAuth(true)
+	bs := servertest.NewBufconnServer(options)
+
+	bs.Start()
+	defer bs.Stop()
+
+	defer os.RemoveAll(options.Dir)
+	defer os.Remove(".state-")
+
+	opts := client.DefaultOptions().WithDialOptions(
+		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
+	).WithTokenService(tokenservice.NewInmemoryTokenService())
+
+	opts.Username = "immudb"
+	opts.Password = "immudb"
+	opts.Database = "defaultdb"
+
+	db, err := gorm.Open(Open(opts, ImmuGormConfig{Verify: true}), &gorm.Config{})
+	require.NoError(t, err)
+
+	// Migrate the schema
+	err = db.AutoMigrate(&Product{})
+	require.NoError(t, err)
+
+	// Create
+	err = db.Create(&Product{Code: "D43", Price: 100, Amount: 500}).Error
+	require.NoError(t, err)
+
+	// Read
+	var product Product
+	// find product with integer primary key
+	err = db.First(&product, 1).Error
+	require.NoError(t, err)
+
+	// Update - update product's price to 200
+	err = db.Model(&product).Update("Price", 888).Error
+	require.NoError(t, err)
+
+	// Update - update multiple fields
+	err = db.Model(&product).Updates(Product{Price: 200, Code: "F42"}).Error
+	require.NoError(t, err)
+
+	// Migrate the schema
+	err = db.AutoMigrate(&Product{})
+	require.NoError(t, err)
+}
+
 type Product struct {
 	ID     uint `gorm:"primarykey"`
 	Code   string
@@ -86,7 +134,7 @@ func TestTypes(t *testing.T) {
 	defer os.Remove(".state-")
 
 	opts := client.DefaultOptions().WithDialOptions(
-		&[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
+		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
 	).WithTokenService(tokenservice.NewInmemoryTokenService())
 
 	opts.Username = "immudb"
@@ -115,8 +163,8 @@ func TestTypes(t *testing.T) {
 	err = db.First(&e, 1).Error
 	require.NoError(t, err)
 	require.Equal(t, true, e.B)
-	require.Equal(t, int8(3), e.I32)
-	require.Equal(t, uint8(4), e.Ui32)
+	require.Equal(t, int32(3), e.I32)
+	require.Equal(t, uint32(4), e.Ui32)
 	require.True(t, bytes.Equal([]byte(`content`), e.Bb))
 }
 
@@ -139,7 +187,7 @@ func TestTimeTravelQuery(t *testing.T) {
 	defer os.Remove(".state-")
 
 	opts := client.DefaultOptions().WithDialOptions(
-		&[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
+		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
 	).WithTokenService(tokenservice.NewInmemoryTokenService())
 
 	opts.Username = "immudb"

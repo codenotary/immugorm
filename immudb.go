@@ -1,8 +1,8 @@
 package immudb
 
 import (
-	"context"
 	"database/sql/driver"
+	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
 	"github.com/codenotary/immudb/pkg/stdlib"
 	"gorm.io/gorm"
@@ -103,7 +103,6 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 
 			for _, a := range c.Expression.(clause.Set) {
 				cv.Columns = append(cv.Columns, a.Column)
-
 			}
 
 			for _, a := range c.Expression.(clause.Set) {
@@ -120,30 +119,8 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 			}
 			nc.Build(b)
 		},
-		"WHERE": func(c clause.Clause, b clause.Builder) {
-			var ne []clause.Expression
-			for _, e := range c.Expression.(clause.Where).Exprs {
-				switch ie := e.(type) {
-				case clause.Eq:
-					nc := &Eq{
-						ie,
-					}
-					ne = append(ne, nc)
-				default:
-					ne = append(ne, e)
-				}
-			}
-			nc := clause.Clause{
-				Name:                c.Name,
-				BeforeExpression:    c.BeforeExpression,
-				AfterNameExpression: c.AfterNameExpression,
-				AfterExpression:     c.AfterExpression,
-				Expression: clause.Where{
-					Exprs: ne,
-				},
-				Builder: c.Builder,
-			}
-			nc.Build(b)
+		"ON CONFLICT": func(c clause.Clause, b clause.Builder) {
+			println("do nothing")
 		},
 	}
 }
@@ -187,8 +164,14 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 			return "INTEGER"
 		}
 	case schema.String:
+		if field.Size > 0 {
+			return fmt.Sprintf("VARCHAR[%d]", field.Size)
+		}
 		return "VARCHAR"
 	case schema.Bytes:
+		if field.Size > 0 {
+			return fmt.Sprintf("BLOB[%d]", field.Size)
+		}
 		return "BLOB"
 	case schema.Time:
 		return "INTEGER"
@@ -212,18 +195,12 @@ func (dialector Dialector) GetImmuclient(db *gorm.DB) (client.ImmuClient, error)
 	}
 
 	dri := sqlDb.Driver()
-	con, err := dri.(*stdlib.Driver).OpenConnectorByOptions(dialector.opts)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := con.Connect(context.TODO())
+	conn, err := dri.(*stdlib.Driver).GetNewConnByOptions(dialector.opts)
 	if err != nil {
 		return nil, err
 	}
 
-	immuConn := conn.(*stdlib.Conn)
-
-	return immuConn.GetImmuClient(), nil
+	return conn.GetImmuClient(), nil
 }
 
 type columnConverter struct{}

@@ -6,11 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
-	"strings"
-
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/migrator"
+	"strings"
 )
 
 type Migrator struct {
@@ -43,7 +42,29 @@ func (m Migrator) CreateTable(values ...interface{}) error {
 
 			if !hasPrimaryKeyInDataType && len(stmt.Schema.PrimaryFields) > 0 {
 				createTableSQL += "PRIMARY KEY ?,"
-				values = append(values, clause.Column{Name: stmt.Schema.PrimaryFields[0].Name})
+				values = append(values, clause.Column{Name: stmt.Schema.PrimaryFields[0].DBName})
+			}
+
+			for _, idx := range stmt.Schema.ParseIndexes() {
+				if m.CreateIndexAfterCreateTable {
+					defer func(value interface{}, name string) {
+						if errr == nil {
+							errr = tx.Migrator().CreateIndex(value, name)
+						}
+					}(value, idx.Name)
+				} else {
+					if idx.Class != "" {
+						createTableSQL += idx.Class + " "
+					}
+					createTableSQL += "INDEX ? ?"
+
+					if idx.Option != "" {
+						createTableSQL += " " + idx.Option
+					}
+
+					createTableSQL += ","
+					values = append(values, clause.Expr{SQL: idx.Name}, tx.Migrator().(migrator.BuildIndexOptionsInterface).BuildIndexOptions(idx.Fields, stmt))
+				}
 			}
 
 			createTableSQL = strings.TrimSuffix(createTableSQL, ",")
@@ -88,6 +109,19 @@ func (m Migrator) DropTable(values ...interface{}) error {
 func (m Migrator) HasColumn(value interface{}, name string) bool {
 	var count int
 	m.Migrator.RunWithValue(value, func(stmt *gorm.Statement) error {
+		immucli, err := m.GetImmuclient()
+		if err != nil {
+			return err
+		}
+		resp, err := immucli.DescribeTable(context.Background(), stmt.Table)
+		if err != nil {
+			return err
+		}
+		for _, v := range resp.Columns {
+			if v.Name == name {
+				count = 1
+			}
+		}
 		return nil
 	})
 	return count > 0
