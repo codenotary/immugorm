@@ -1,6 +1,7 @@
 package immudb
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
@@ -174,7 +175,7 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 		}
 		return "BLOB"
 	case schema.Time:
-		return "INTEGER"
+		return "TIMESTAMP"
 	}
 
 	return string(field.DataType)
@@ -195,7 +196,7 @@ func (dialector Dialector) GetImmuclient(db *gorm.DB) (client.ImmuClient, error)
 	}
 
 	dri := sqlDb.Driver()
-	conn, err := dri.(*stdlib.Driver).GetNewConnByOptions(dialector.opts)
+	conn, err := dri.(*stdlib.Driver).GetNewConnByOptions(context.TODO(), dialector.opts)
 	if err != nil {
 		return nil, err
 	}
