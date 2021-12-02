@@ -56,70 +56,14 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 	db.Config.DisableAutomaticPing = true
 	db.Config.AllowGlobalUpdate = true
 
-	db.Callback().Delete().Before("gorm:delete").Register("immudb:before_delete", unsupportDelete)
 	if dialector.cfg.Verify {
 		db.Callback().Query().After("gorm:query").Register("immudb:after_query", dialector.verify)
 	}
 	return
 }
 
-func unsupportDelete(db *gorm.DB) {
-	db.AddError(ErrDeleteNotImplemented)
-}
-
 func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	return map[string]clause.ClauseBuilder{
-		"UPDATE": func(c clause.Clause, b clause.Builder) {
-			upsert := Upsert{
-				Table: currentTable,
-			}
-
-			nc := clause.Clause{
-				Name:                "UPSERT",
-				BeforeExpression:    c.BeforeExpression,
-				AfterNameExpression: c.AfterNameExpression,
-				AfterExpression:     c.AfterExpression,
-				Expression:          upsert,
-				Builder:             c.Builder,
-			}
-			nc.Build(b)
-		},
-		"SET": func(c clause.Clause, b clause.Builder) {
-			st := b.(*gorm.Statement)
-			var eq clause.Eq
-			for _, e1 := range st.Clauses["WHERE"].Expression.(clause.Where).Exprs {
-				eq = e1.(clause.Eq)
-			}
-			// when UPSERT where is not supported
-			delete(st.Clauses, "WHERE")
-
-			pKeyVal := eq.Value
-			pKeyCol := clause.Column{
-				Name: eq.Column.(string),
-			}
-			cv := clause.Values{}
-
-			cv.Columns = []clause.Column{pKeyCol}
-			cv.Values = [][]interface{}{{pKeyVal}}
-
-			for _, a := range c.Expression.(clause.Set) {
-				cv.Columns = append(cv.Columns, a.Column)
-			}
-
-			for _, a := range c.Expression.(clause.Set) {
-				cv.Values[0] = append(cv.Values[0], []interface{}{a.Value})
-			}
-
-			nc := clause.Clause{
-				Name:                "",
-				BeforeExpression:    c.BeforeExpression,
-				AfterNameExpression: c.AfterNameExpression,
-				AfterExpression:     c.AfterExpression,
-				Expression:          cv,
-				Builder:             c.Builder,
-			}
-			nc.Build(b)
-		},
 		"ON CONFLICT": func(c clause.Clause, b clause.Builder) {
 			println("do nothing")
 		},

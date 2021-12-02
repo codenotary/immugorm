@@ -27,7 +27,7 @@ func TestTimestamp(t *testing.T) {
 	err = db.First(&product, 1).Error
 	require.NoError(t, err)
 
-	err = db.Delete(&product, 1).Error
+	err = db.Delete(&product).Error
 	require.NoError(t, err)
 
 	var prods []Product
