@@ -136,11 +136,11 @@ func (m Migrator) DropColumn(value interface{}, name string) error {
 }
 
 func (m Migrator) CreateConstraint(interface{}, string) error {
-	return ErrConstraintsNotImplemented
+	return nil
 }
 
 func (m Migrator) DropConstraint(interface{}, string) error {
-	return ErrConstraintsNotImplemented
+	return nil
 }
 
 func (m Migrator) HasConstraint(value interface{}, name string) bool {

@@ -2,6 +2,7 @@ package gorm
 
 import (
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 	"testing"
 )
 
@@ -11,12 +12,12 @@ func Test_BelongsTo(t *testing.T) {
 	defer close()
 
 	type Company struct {
-		ID   int
+		gorm.Model
 		Name string
 	}
 
 	type User struct {
-		ID        uint `gorm:"primarykey"`
+		gorm.Model
 		Name      string
 		CompanyID int
 		Company   Company
@@ -93,7 +94,7 @@ func Test_BelongsTo(t *testing.T) {
 	require.NoError(t, err)
 
 	var userWithCompanyReplaced User
-	err = db.Where("name = ?", "user-append").First(&userWithCompanyReplaced).Error
+	err = db.Preload("Company").Where("name = ?", "user-append").First(&userWithCompanyReplaced).Error
 	require.NoError(t, err)
 	require.Equal(t, userWithCompanyReplaced.Company.Name, "company-replaced")
 }
