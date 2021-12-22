@@ -30,12 +30,6 @@ func BeforeTx(tx uint64) TimeTravel {
 		txId: tx, mode: "before"}
 }
 
-func AfterTx(tx uint64) TimeTravel {
-	return TimeTravel{
-		txId: tx, mode: "after",
-	}
-}
-
 func (tt TimeTravel) Build(builder clause.Builder) {
 	if st, ok := builder.(*gorm.Statement); ok {
 		old := st.SQL.String()

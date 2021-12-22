@@ -2,6 +2,7 @@ package immudb
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
@@ -9,8 +10,10 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/migrator"
 	"gorm.io/gorm/schema"
+	"regexp"
 )
 
 const DriverName = "immudb"
@@ -22,10 +25,12 @@ type ImmuGormConfig struct {
 type Dialector struct {
 	DriverName string
 	opts       *client.Options
-	cfg        ImmuGormConfig
+	cfg        *ImmuGormConfig
+	Conn       gorm.ConnPool
+	DSN        string
 }
 
-func Open(opts *client.Options, cfg ImmuGormConfig) gorm.Dialector {
+func Open(opts *client.Options, cfg *ImmuGormConfig) gorm.Dialector {
 	if opts == nil {
 		opts = client.DefaultOptions()
 	}
@@ -45,16 +50,30 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 		dialector.DriverName = DriverName
 	}
 
-	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{})
+	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{
+		CreateClauses: []string{"INSERT", "VALUES", "ON CONFLICT"},
+		UpdateClauses: []string{"UPDATE", "SET", "WHERE"},
+		DeleteClauses: []string{"DELETE", "FROM", "WHERE"},
+		QueryClauses:  []string{"SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "LIMIT" /*, "FOR"*/},
+	})
 
-	db.ConnPool = stdlib.OpenDB(dialector.opts)
+	if dialector.Conn != nil {
+		db.ConnPool = dialector.Conn
+	} else if dialector.opts != nil {
+		db.ConnPool = stdlib.OpenDB(dialector.opts)
+	} else if dialector.DSN != "" {
+		db.ConnPool, err = sql.Open(dialector.DriverName, dialector.DSN)
+	}
+
+	if db.ConnPool == nil {
+		return fmt.Errorf("failed to open connection")
+	}
+
 	for k, v := range dialector.ClauseBuilders() {
 		db.ClauseBuilders[k] = v
 	}
 
 	db.Config.SkipDefaultTransaction = true
-	db.Config.DisableAutomaticPing = true
-	db.Config.AllowGlobalUpdate = true
 
 	if dialector.cfg.Verify {
 		db.Callback().Query().After("gorm:query").Register("immudb:after_query", dialector.verify)
@@ -64,8 +83,14 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 
 func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	return map[string]clause.ClauseBuilder{
-		"ON CONFLICT": func(c clause.Clause, b clause.Builder) {
-			println("do nothing")
+		"ON CONFLICT": func(c clause.Clause, builder clause.Builder) {
+			_, ok := c.Expression.(clause.OnConflict)
+			if !ok {
+				c.Build(builder)
+				return
+			}
+			builder.WriteString("ON CONFLICT DO NOTHING")
+			return
 		},
 	}
 }
@@ -94,8 +119,10 @@ func (dialector Dialector) QuoteTo(writer clause.Writer, str string) {
 	return
 }
 
+var numericPlaceholder = regexp.MustCompile("\\$(\\d+)")
+
 func (dialector Dialector) Explain(sql string, vars ...interface{}) string {
-	return ""
+	return logger.ExplainSQL(sql, numericPlaceholder, `'`, vars...)
 }
 
 func (dialector Dialector) DataTypeOf(field *schema.Field) string {

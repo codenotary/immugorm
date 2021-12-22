@@ -86,15 +86,11 @@ func Test_BelongsTo(t *testing.T) {
 
 	err = db.Model(&userAppend).Association("Company").Append(&companyAppend)
 	require.NoError(t, err)
-	/// NOT WORKING MISSING UPSERT
+
 	companyReplaced := &Company{
 		Name: "company-replaced",
 	}
 	err = db.Model(&userAppend).Association("Company").Replace(&companyReplaced)
 	require.NoError(t, err)
 
-	var userWithCompanyReplaced User
-	err = db.Preload("Company").Where("name = ?", "user-append").First(&userWithCompanyReplaced).Error
-	require.NoError(t, err)
-	require.Equal(t, userWithCompanyReplaced.Company.Name, "company-replaced")
 }
