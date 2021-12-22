@@ -1,9 +1,24 @@
+/*
+Copyright 2021 CodeNotary, Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package immudb
 
 import (
 	"bytes"
 	"github.com/codenotary/immudb/pkg/client"
-	"github.com/codenotary/immudb/pkg/client/tokenservice"
 	"github.com/codenotary/immudb/pkg/server"
 	"github.com/codenotary/immudb/pkg/server/servertest"
 	"github.com/stretchr/testify/require"
@@ -25,13 +40,13 @@ func TestSimpleQuery(t *testing.T) {
 
 	opts := client.DefaultOptions().WithDialOptions(
 		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
-	).WithTokenService(tokenservice.NewInmemoryTokenService())
+	)
 
 	opts.Username = "immudb"
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, ImmuGormConfig{Verify: true}), &gorm.Config{})
+	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: true}), &gorm.Config{})
 	require.NoError(t, err)
 
 	// Migrate the schema
@@ -65,11 +80,11 @@ func TestSimpleQuery(t *testing.T) {
 
 	// Delete - delete product
 	err = db.Delete(&product, 1).Error
-	require.Equal(t, err, ErrDeleteNotImplemented)
+	require.NoError(t, err)
 }
 
 func TestMigrationWithPreviousData(t *testing.T) {
-	options := server.DefaultOptions().WithAuth(true)
+	options := server.DefaultOptions()
 	bs := servertest.NewBufconnServer(options)
 
 	bs.Start()
@@ -80,13 +95,13 @@ func TestMigrationWithPreviousData(t *testing.T) {
 
 	opts := client.DefaultOptions().WithDialOptions(
 		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
-	).WithTokenService(tokenservice.NewInmemoryTokenService())
+	)
 
 	opts.Username = "immudb"
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, ImmuGormConfig{Verify: true}), &gorm.Config{})
+	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: true}), &gorm.Config{})
 	require.NoError(t, err)
 
 	// Migrate the schema
@@ -135,13 +150,13 @@ func TestTypes(t *testing.T) {
 
 	opts := client.DefaultOptions().WithDialOptions(
 		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
-	).WithTokenService(tokenservice.NewInmemoryTokenService())
+	)
 
 	opts.Username = "immudb"
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, ImmuGormConfig{Verify: true}), &gorm.Config{})
+	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: true}), &gorm.Config{})
 	require.NoError(t, err)
 
 	// Migrate the schema
@@ -177,7 +192,7 @@ type Entity struct {
 }
 
 func TestTimeTravelQuery(t *testing.T) {
-	options := server.DefaultOptions().WithAuth(true)
+	options := server.DefaultOptions()
 	bs := servertest.NewBufconnServer(options)
 
 	bs.Start()
@@ -188,13 +203,13 @@ func TestTimeTravelQuery(t *testing.T) {
 
 	opts := client.DefaultOptions().WithDialOptions(
 		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
-	).WithTokenService(tokenservice.NewInmemoryTokenService())
+	)
 
 	opts.Username = "immudb"
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, ImmuGormConfig{Verify: false}), &gorm.Config{})
+	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: false}), &gorm.Config{})
 	require.NoError(t, err)
 
 	// Migrate the schema
@@ -220,6 +235,7 @@ func TestTimeTravelQuery(t *testing.T) {
 
 	var entity Entity
 	err = db.Last(&entity, 1).Error
+	require.NoError(t, err)
 	var entityTT Entity
 	err = db.Clauses(BeforeTx(9)).Last(&entityTT, 1).Error
 	require.NoError(t, err)
