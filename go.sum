@@ -104,8 +104,8 @@ github.com/cockroachdb/apd v1.1.0 h1:3LFP3629v+1aKXU5Q37mxmRxX/pIu1nijXydLShEq5I
 github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMeY4+DwBQ=
 github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa/go.mod h1:zn76sxSg3SzpJ0PPJaLDCu+Bu0Lg3sKTORVIj19EIF8=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
-github.com/codenotary/immudb v1.2.1 h1:GyjSEf4tuU1NJdYd/c1iDuiSxngfA2N6E/OKjsi9My0=
-github.com/codenotary/immudb v1.2.1/go.mod h1:bodj5Z9/L9cZ/jqgT0xcURJ8dj5QmM9HPh/Dg15ufTk=
+github.com/codenotary/immudb v1.2.2-0.20211223101821-d406843719ee h1:Q14rLGDw0zMWYVymQq/kjNf5l+Dp1K1Fs8HQZw0876Q=
+github.com/codenotary/immudb v1.2.2-0.20211223101821-d406843719ee/go.mod h1:bodj5Z9/L9cZ/jqgT0xcURJ8dj5QmM9HPh/Dg15ufTk=
 github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
