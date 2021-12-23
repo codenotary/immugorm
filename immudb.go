@@ -18,7 +18,6 @@ package immudb
 
 import (
 	"context"
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
@@ -77,8 +76,6 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 		db.ConnPool = dialector.Conn
 	} else if dialector.opts != nil {
 		db.ConnPool = stdlib.OpenDB(dialector.opts)
-	} else if dialector.DSN != "" {
-		db.ConnPool, err = sql.Open(dialector.DriverName, dialector.DSN)
 	}
 
 	if db.ConnPool == nil {

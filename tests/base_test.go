@@ -120,7 +120,7 @@ func TestMigrationWithPreviousData(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{})
+	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{})
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(&Product{})
@@ -161,7 +161,7 @@ func TestTypes(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{
+	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	require.NoError(t, err)
