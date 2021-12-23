@@ -49,7 +49,7 @@ func BeforeTx(tx uint64) TimeTravel {
 func (tt TimeTravel) Build(builder clause.Builder) {
 	if st, ok := builder.(*gorm.Statement); ok {
 		old := st.SQL.String()
-		new := strings.Replace(old, st.Table, fmt.Sprintf("(%s %s TX %d)", st.Table, strings.ToUpper(tt.mode), tt.txId), -1)
+		new := strings.Replace(old, st.Table, fmt.Sprintf("%s %s TX %d", st.Table, strings.ToUpper(tt.mode), tt.txId), -1)
 		st.SQL.Reset()
 		st.SQL.WriteString(new)
 	}

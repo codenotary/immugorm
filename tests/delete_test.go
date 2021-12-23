@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-func Test_BelongsTo(t *testing.T) {
+func Test_Delete(t *testing.T) {
 	db, close, err := OpenDB()
 	require.NoError(t, err)
 	defer close()
@@ -108,4 +108,5 @@ func Test_BelongsTo(t *testing.T) {
 	}
 	err = db.Model(&userAppend).Association("Company").Replace(&companyReplaced)
 	require.NoError(t, err)
+
 }

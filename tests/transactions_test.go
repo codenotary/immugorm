@@ -56,4 +56,5 @@ func Test_Transactions(t *testing.T) {
 	var author Author
 	err = db.Find(&author, "Name = ?", "Giraffe").Error
 	require.NoError(t, err)
+	require.Equal(t, "Giraffe", author.Name)
 }

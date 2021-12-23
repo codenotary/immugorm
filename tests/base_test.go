@@ -14,22 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package immudb
+package tests
 
 import (
 	"bytes"
 	"github.com/codenotary/immudb/pkg/client"
 	"github.com/codenotary/immudb/pkg/server"
 	"github.com/codenotary/immudb/pkg/server/servertest"
+	immugorm "github.com/codenotary/immugorm"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"os"
 	"testing"
+	"time"
 )
 
-func TestSimpleQuery(t *testing.T) {
-	options := server.DefaultOptions().WithAuth(true)
+func TestBase(t *testing.T) {
+	type Product struct {
+		ID     uint `gorm:"primarykey"`
+		Code   string
+		Price  uint
+		Amount uint
+	}
+
+	options := server.DefaultOptions()
 	bs := servertest.NewBufconnServer(options)
 
 	bs.Start()
@@ -46,7 +56,9 @@ func TestSimpleQuery(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: true}), &gorm.Config{})
+	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	require.NoError(t, err)
 
 	// Migrate the schema
@@ -84,6 +96,13 @@ func TestSimpleQuery(t *testing.T) {
 }
 
 func TestMigrationWithPreviousData(t *testing.T) {
+	type Product struct {
+		ID     uint `gorm:"primarykey"`
+		Code   string
+		Price  uint
+		Amount uint
+	}
+
 	options := server.DefaultOptions()
 	bs := servertest.NewBufconnServer(options)
 
@@ -101,86 +120,17 @@ func TestMigrationWithPreviousData(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: true}), &gorm.Config{})
+	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{})
 	require.NoError(t, err)
 
-	// Migrate the schema
 	err = db.AutoMigrate(&Product{})
 	require.NoError(t, err)
 
-	// Create
 	err = db.Create(&Product{Code: "D43", Price: 100, Amount: 500}).Error
 	require.NoError(t, err)
 
-	// Read
-	var product Product
-	// find product with integer primary key
-	err = db.First(&product, 1).Error
-	require.NoError(t, err)
-
-	// Update - update product's price to 200
-	err = db.Model(&product).Update("Price", 888).Error
-	require.NoError(t, err)
-
-	// Update - update multiple fields
-	err = db.Model(&product).Updates(Product{Price: 200, Code: "F42"}).Error
-	require.NoError(t, err)
-
-	// Migrate the schema
 	err = db.AutoMigrate(&Product{})
 	require.NoError(t, err)
-}
-
-type Product struct {
-	ID     uint `gorm:"primarykey"`
-	Code   string
-	Price  uint
-	Amount uint
-}
-
-func TestTypes(t *testing.T) {
-	options := server.DefaultOptions().WithAuth(true)
-	bs := servertest.NewBufconnServer(options)
-
-	bs.Start()
-	defer bs.Stop()
-
-	defer os.RemoveAll(options.Dir)
-	defer os.Remove(".state-")
-
-	opts := client.DefaultOptions().WithDialOptions(
-		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
-	)
-
-	opts.Username = "immudb"
-	opts.Password = "immudb"
-	opts.Database = "defaultdb"
-
-	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: true}), &gorm.Config{})
-	require.NoError(t, err)
-
-	// Migrate the schema
-	err = db.AutoMigrate(&Entity{})
-	require.NoError(t, err)
-
-	// Create
-	err = db.Create(&Entity{
-		B:    true,
-		I32:  int32(3),
-		Ui32: uint32(4),
-		Bb:   []byte(`content`),
-	}).Error
-	require.NoError(t, err)
-
-	// Read
-	var e Entity
-	// find product with integer primary key
-	err = db.First(&e, 1).Error
-	require.NoError(t, err)
-	require.Equal(t, true, e.B)
-	require.Equal(t, int32(3), e.I32)
-	require.Equal(t, uint32(4), e.Ui32)
-	require.True(t, bytes.Equal([]byte(`content`), e.Bb))
 }
 
 type Entity struct {
@@ -189,9 +139,11 @@ type Entity struct {
 	I32  int32
 	Ui32 uint32
 	Bb   []byte
+	Time time.Time
 }
 
-func TestTimeTravelQuery(t *testing.T) {
+func TestTypes(t *testing.T) {
+
 	options := server.DefaultOptions()
 	bs := servertest.NewBufconnServer(options)
 
@@ -209,44 +161,32 @@ func TestTimeTravelQuery(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(Open(opts, &ImmuGormConfig{Verify: false}), &gorm.Config{})
+	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	require.NoError(t, err)
 
 	// Migrate the schema
 	err = db.AutoMigrate(&Entity{})
 	require.NoError(t, err)
 
+	now := time.Now()
+	// Create
 	err = db.Create(&Entity{
 		B:    true,
-		I32:  0,
-		Ui32: 0,
-		Bb:   []byte(`control`),
+		I32:  int32(3),
+		Ui32: uint32(4),
+		Bb:   []byte(`content`),
+		Time: now,
 	}).Error
+	require.NoError(t, err)
+
 	var e Entity
 	err = db.First(&e, 1).Error
-
-	// Create
-	for i := 1; i <= 10; i++ {
-		fi := int32(i)
-		si := uint32(i)
-		err = db.Model(&e).Updates(map[string]interface{}{"B": true, "I32": fi, "Ui32": si, "Bb": []byte(`control`)}).Error
-		require.NoError(t, err)
-	}
-
-	var entity Entity
-	err = db.Last(&entity, 1).Error
 	require.NoError(t, err)
-	var entityTT Entity
-	err = db.Clauses(BeforeTx(9)).Last(&entityTT, 1).Error
-	require.NoError(t, err)
-	require.Equal(t, entityTT.Ui32, uint32(5))
-	require.Equal(t, entityTT.I32, int32(5))
-	err = db.Clauses(BeforeTx(8)).Last(&entityTT, 1).Error
-	require.NoError(t, err)
-	require.Equal(t, entityTT.Ui32, uint32(4))
-	require.Equal(t, entityTT.I32, int32(4))
-	err = db.Clauses(BeforeTx(5)).Last(&entityTT, 1).Error
-	require.NoError(t, err)
-	require.Equal(t, entityTT.Ui32, uint32(1))
-	require.Equal(t, entityTT.I32, int32(1))
+	require.Equal(t, true, e.B)
+	require.Equal(t, int32(3), e.I32)
+	require.Equal(t, uint32(4), e.Ui32)
+	require.WithinDuration(t, now, e.Time, 1*time.Millisecond)
+	require.True(t, bytes.Equal([]byte(`content`), e.Bb))
 }

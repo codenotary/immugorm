@@ -40,6 +40,8 @@ func TestRawQuery(t *testing.T) {
 	require.NoError(t, err)
 	err = db.Raw("SELECT id, name, age FROM users WHERE name = ?", "michele").Scan(&result).Error
 	require.NoError(t, err)
+	require.Equal(t, "michele", result.Name)
+	require.Equal(t, 40, result.Age)
 }
 
 func TestNamedArguments(t *testing.T) {
@@ -60,6 +62,6 @@ func TestNamedArguments(t *testing.T) {
 	require.NoError(t, err)
 
 	var user User
-	db.Where("name = @name1 OR name = @name2", sql.Named("name1", "michele"), sql.Named("name2", "jhon")).Find(&user)
+	err = db.Where("name = @name1 OR name = @name2", sql.Named("name1", "michele"), sql.Named("name2", "jhon")).Find(&user).Error
 	require.NoError(t, err)
 }

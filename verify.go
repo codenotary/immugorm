@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	embsql "github.com/codenotary/immudb/embedded/sql"
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	"gorm.io/gorm"
 	"strings"
@@ -107,6 +108,8 @@ func getImmuRowFromSQLRow(dbName, tableName string, rows *sql.Rows) (*immuschema
 			vals[i] = new([]byte)
 		case "ANY":
 			vals[i] = new(sql.NullString)
+		case "TIMESTAMP":
+			vals[i] = new(sql.NullTime)
 		default:
 			vals[i] = new(sql.NullString)
 		}
@@ -135,6 +138,10 @@ func getImmuRowFromSQLRow(dbName, tableName string, rows *sql.Rows) (*immuschema
 		case *[]byte:
 			if len(*t) > 0 {
 				s = &immuschema.SQLValue{Value: &immuschema.SQLValue_Bs{Bs: *t}}
+			}
+		case *sql.NullTime:
+			if t.Valid {
+				s = &immuschema.SQLValue{Value: &immuschema.SQLValue_Ts{Ts: embsql.TimeToInt64(t.Time)}}
 			}
 		default:
 			s = nil
