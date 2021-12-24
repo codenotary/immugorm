@@ -22,6 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
+	"github.com/codenotary/immudb/pkg/stdlib"
+	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/migrator"
@@ -30,10 +32,6 @@ import (
 
 type Migrator struct {
 	migrator.Migrator
-}
-
-func (m Migrator) GetImmuclient() (client.ImmuClient, error) {
-	return m.Dialector.(Dialector).GetImmuclient(m.DB)
 }
 
 func (m Migrator) CreateTable(values ...interface{}) error {
@@ -103,15 +101,31 @@ func (m Migrator) CreateTable(values ...interface{}) error {
 func (m Migrator) HasTable(value interface{}) bool {
 	var count int
 	m.Migrator.RunWithValue(value, func(stmt *gorm.Statement) error {
-		immucli, err := m.GetImmuclient()
+		sqlDb, err := m.DB.DB()
 		if err != nil {
 			return err
 		}
-		_, err = immucli.DescribeTable(context.Background(), stmt.Table)
+		conn, err := sqlDb.Conn(context.TODO())
 		if err != nil {
 			return err
 		}
-		count = 1
+		var ic client.ImmuClient
+		err = conn.Raw(func(driverConn interface{}) error {
+			ic = driverConn.(*stdlib.Conn).GetImmuClient()
+			_, er := ic.DescribeTable(context.Background(), stmt.Table)
+			if er != nil {
+				st, ok := status.FromError(er)
+				if ok && st.Message() == "table does not exist" {
+					count = 0
+					return nil
+				}
+				m.DB.AddError(er)
+				return nil
+			}
+			count = 1
+			return nil
+		})
+		conn.Close()
 		return nil
 	})
 
@@ -125,19 +139,29 @@ func (m Migrator) DropTable(values ...interface{}) error {
 func (m Migrator) HasColumn(value interface{}, name string) bool {
 	var count int
 	m.Migrator.RunWithValue(value, func(stmt *gorm.Statement) error {
-		immucli, err := m.GetImmuclient()
+		sqlDb, err := m.DB.DB()
 		if err != nil {
 			return err
 		}
-		resp, err := immucli.DescribeTable(context.Background(), stmt.Table)
+		conn, err := sqlDb.Conn(context.TODO())
 		if err != nil {
 			return err
 		}
-		for _, v := range resp.Columns {
-			if v.Name == name {
-				count = 1
+		var ic client.ImmuClient
+		err = conn.Raw(func(driverConn interface{}) error {
+			ic = driverConn.(*stdlib.Conn).GetImmuClient()
+			resp, er := ic.DescribeTable(context.Background(), stmt.Table)
+			if er != nil {
+				return er
 			}
-		}
+			for _, v := range resp.Columns {
+				if v.Name == name {
+					count = 1
+				}
+			}
+			return nil
+		})
+		conn.Close()
 		return nil
 	})
 	return count > 0
@@ -208,27 +232,36 @@ func (m Migrator) DropIndex(value interface{}, name string) error {
 func (m Migrator) ColumnTypes(value interface{}) ([]gorm.ColumnType, error) {
 	columnTypes := make([]gorm.ColumnType, 0)
 	execErr := m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		immucli, err := m.GetImmuclient()
+		sqlDb, err := m.DB.DB()
 		if err != nil {
 			return err
 		}
-		resp, err := immucli.DescribeTable(context.Background(), stmt.Table)
+		conn, err := sqlDb.Conn(context.TODO())
 		if err != nil {
 			return err
 		}
-		for _, r := range resp.Rows {
-			for _, c := range r.GetValues() {
-				// @todo add missing properties in colunb description. Not sure where they are needed
-				column := Column{
-					name: c.GetS(),
-				}
-				columnTypes = append(columnTypes, column)
-				break
+		var ic client.ImmuClient
+		err = conn.Raw(func(driverConn interface{}) error {
+			ic = driverConn.(*stdlib.Conn).GetImmuClient()
+			resp, err := ic.DescribeTable(context.Background(), stmt.Table)
+			if err != nil {
+				return err
 			}
-		}
+			for _, r := range resp.Rows {
+				for _, c := range r.GetValues() {
+					// @todo add missing properties in colunb description. Not sure where they are needed
+					column := Column{
+						name: c.GetS(),
+					}
+					columnTypes = append(columnTypes, column)
+					break
+				}
+			}
+			return nil
+		})
+		conn.Close()
 		return nil
 	})
-
 	return columnTypes, execErr
 }
 

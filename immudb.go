@@ -17,7 +17,7 @@ limitations under the License.
 package immudb
 
 import (
-	"context"
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"github.com/codenotary/immudb/pkg/client"
@@ -56,11 +56,11 @@ func Open(opts *client.Options, cfg *ImmuGormConfig) gorm.Dialector {
 	}
 }
 
-func (dialector Dialector) Name() string {
+func (dialector *Dialector) Name() string {
 	return "immudb"
 }
 
-func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
+func (dialector *Dialector) Initialize(db *gorm.DB) (err error) {
 	if dialector.DriverName == "" {
 		dialector.DriverName = DriverName
 	}
@@ -72,15 +72,23 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 		QueryClauses:  []string{"SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "LIMIT" /*, "FOR"*/},
 	})
 
+	var connStr = ""
 	if dialector.Conn != nil {
 		db.ConnPool = dialector.Conn
 	} else if dialector.opts != nil {
-		db.ConnPool = stdlib.OpenDB(dialector.opts)
+		connStr = stdlib.RegisterConnConfig(dialector.opts)
+	} else if dialector.DSN != "" {
+		connStr = dialector.DSN
+	} else {
+		return fmt.Errorf("no connection or immuclient options provided")
 	}
 
-	if db.ConnPool == nil {
-		return fmt.Errorf("failed to open connection")
+	conn, err := sql.Open("immudb", connStr)
+	if err != nil {
+		return err
 	}
+
+	db.ConnPool = conn
 
 	for k, v := range dialector.ClauseBuilders() {
 		db.ClauseBuilders[k] = v
@@ -94,7 +102,7 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 	return
 }
 
-func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
+func (dialector *Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	return map[string]clause.ClauseBuilder{
 		"ON CONFLICT": func(c clause.Clause, builder clause.Builder) {
 			_, ok := c.Expression.(clause.OnConflict)
@@ -108,11 +116,11 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	}
 }
 
-func (dialector Dialector) DefaultValueOf(field *schema.Field) clause.Expression {
+func (dialector *Dialector) DefaultValueOf(field *schema.Field) clause.Expression {
 	return nil
 }
 
-func (dialector Dialector) Migrator(db *gorm.DB) gorm.Migrator {
+func (dialector *Dialector) Migrator(db *gorm.DB) gorm.Migrator {
 	return Migrator{
 		migrator.Migrator{
 			Config: migrator.Config{
@@ -123,22 +131,22 @@ func (dialector Dialector) Migrator(db *gorm.DB) gorm.Migrator {
 	}
 }
 
-func (dialector Dialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v interface{}) {
+func (dialector *Dialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v interface{}) {
 	writer.WriteByte('?')
 }
 
-func (dialector Dialector) QuoteTo(writer clause.Writer, str string) {
+func (dialector *Dialector) QuoteTo(writer clause.Writer, str string) {
 	writer.WriteString(str)
 	return
 }
 
 var numericPlaceholder = regexp.MustCompile("\\$(\\d+)")
 
-func (dialector Dialector) Explain(sql string, vars ...interface{}) string {
+func (dialector *Dialector) Explain(sql string, vars ...interface{}) string {
 	return logger.ExplainSQL(sql, numericPlaceholder, `'`, vars...)
 }
 
-func (dialector Dialector) DataTypeOf(field *schema.Field) string {
+func (dialector *Dialector) DataTypeOf(field *schema.Field) string {
 	switch field.DataType {
 	case schema.Bool:
 		return "BOOLEAN"
@@ -165,27 +173,12 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 	return string(field.DataType)
 }
 
-func (dialector Dialector) SavePoint(tx *gorm.DB, name string) error {
+func (dialector *Dialector) SavePoint(tx *gorm.DB, name string) error {
 	return ErrNotImplemented
 }
 
-func (dialector Dialector) RollbackTo(tx *gorm.DB, name string) error {
+func (dialector *Dialector) RollbackTo(tx *gorm.DB, name string) error {
 	return ErrNotImplemented
-}
-
-func (dialector Dialector) GetImmuclient(db *gorm.DB) (client.ImmuClient, error) {
-	sqlDb, err := db.DB()
-	if err != nil {
-		db.AddError(err)
-	}
-
-	dri := sqlDb.Driver()
-	conn, err := dri.(*stdlib.Driver).GetNewConnByOptions(context.TODO(), dialector.opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn.GetImmuClient(), nil
 }
 
 type columnConverter struct{}
