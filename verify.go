@@ -23,7 +23,6 @@ import (
 	embsql "github.com/codenotary/immudb/embedded/sql"
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	"github.com/codenotary/immudb/pkg/client"
-	"github.com/codenotary/immudb/pkg/stdlib"
 	"gorm.io/gorm"
 	"strings"
 )
@@ -57,19 +56,7 @@ func (dialector *Dialector) verify(db *gorm.DB) {
 		return
 	}
 
-	var ic client.ImmuClient
-	sqlDB, err := db.DB()
-	if err != nil {
-		db.AddError(err)
-		return
-	}
-	conn, err := sqlDB.Conn(context.Background())
-	if err != nil {
-		db.AddError(err)
-		return
-	}
-	conn.Raw(func(driverConn interface{}) error {
-		ic = driverConn.(*stdlib.Conn).GetImmuClient()
+	_ = executeOnImmuClient(db, func(ic client.ImmuClient) error {
 		err = ic.VerifyRow(context.Background(), r, tableName, pkey)
 		if err != nil {
 			if err.Error() == "data is corrupted" {
@@ -80,7 +67,6 @@ func (dialector *Dialector) verify(db *gorm.DB) {
 		}
 		return nil
 	})
-	conn.Close()
 	return
 }
 

@@ -17,6 +17,7 @@ limitations under the License.
 package immudb
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -191,4 +192,21 @@ type valueConverter struct{}
 
 func (cc valueConverter) ConvertValue(v interface{}) (driver.Value, error) {
 	return nil, nil
+}
+
+func executeOnImmuClient(db *gorm.DB, f func(client.ImmuClient) error) error {
+	sqlDb, err := db.DB()
+	if err != nil {
+		return err
+	}
+	conn, err := sqlDb.Conn(context.TODO())
+	if err != nil {
+		return err
+	}
+	err = conn.Raw(func(driverConn interface{}) error {
+		ic := driverConn.(*stdlib.Conn).GetImmuClient()
+		return f(ic)
+	})
+	conn.Close()
+	return nil
 }
