@@ -1,5 +1,5 @@
 # IMMUGORM
-The [immudb](https://github.com/codenotary/immudb) gorm driver
+This repository is a driver for [immudb](https://github.com/codenotary/immudb).  to act as a database for GORM. 
 
 ## Quick Start
 Clone immudb repository, compile immudb and launch it:
@@ -9,7 +9,8 @@ make immudb
 ./immudb
 ```
 
-Here an example
+Below see an example on how to get GORM to work with immudb:
+
 ```go
 package main
 
