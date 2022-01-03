@@ -80,6 +80,31 @@ func main() {
 	}
 }
 ```
+
+### Open with Immudb Options
+It's possible open a connection with immudb options to provide more control over the connection or enable some features that are not available by standard DSN.
+```go
+    import (
+        "github.com/codenotary/immudb/pkg/client"
+        immugorm "github.com/codenotary/immugorm"
+        "gorm.io/gorm"
+        "gorm.io/gorm/logger"
+    )
+
+    ...
+
+    opts := client.DefaultOptions()
+
+    opts.Username = "immudb"
+    opts.Password = "immudb"
+    opts.Database = "defaultdb"
+    opts.HealthCheckRetries = 10
+
+    db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
+        Logger: logger.Default.LogMode(logger.Info),
+    })
+```
+
 ## IMMUDB SPECIAL FEATURES
 
 ### TamperProof read
