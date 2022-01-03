@@ -27,82 +27,82 @@ type Product struct {
 }
 
 func main() {
-	db, err := gorm.Open(immugorm.Open("immudb://immudb:immudb@127.0.0.1:3322/defaultdb?sslmode=disable", &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
-	if err != nil {
-		panic(err)
-	}
+    db, err := gorm.Open(immugorm.Open("immudb://immudb:immudb@127.0.0.1:3322/defaultdb?sslmode=disable", &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
+        Logger: logger.Default.LogMode(logger.Info),
+    })
+    if err != nil {
+        panic(err)
+    }
 
-	// Migrate the schema
-	err = db.AutoMigrate(&Product{})
-	if err != nil {
-		panic(err)
-	}
-	// Create
-	err = db.Create(&Product{Code: "D43", Price: 100, Amount: 500}).Error
-	if err != nil {
-		panic(err)
-	}
-	// Read
-	var product Product
-	// find just created one
-	err = db.First(&product).Error
-	if err != nil {
-		panic(err)
-	}
-	// find product with code D42
-	err = db.First(&product, "code = ?", "D43").Error
-	if err != nil {
-		panic(err)
-	}
-	// Update - update product's price to 200
-	err = db.Model(&product).Update("Price", 888).Error
-	if err != nil {
-		panic(err)
-	}
+    // Migrate the schema
+    err = db.AutoMigrate(&Product{})
+    if err != nil {
+        panic(err)
+    }
+    // Create
+    err = db.Create(&Product{Code: "D43", Price: 100, Amount: 500}).Error
+    if err != nil {
+        panic(err)
+    }
+    // Read
+    var product Product
+    // find just created one
+    err = db.First(&product).Error
+    if err != nil {
+        panic(err)
+    }
+    // find product with code D42
+    err = db.First(&product, "code = ?", "D43").Error
+    if err != nil {
+        panic(err)
+    }
+    // Update - update product's price to 200
+    err = db.Model(&product).Update("Price", 888).Error
+    if err != nil {
+        panic(err)
+    }
 
-	// Update - update multiple fields
-	err = db.Model(&product).Updates(Product{Price: 200, Code: "F42"}).Error
-	if err != nil {
-		panic(err)
-	}
+    // Update - update multiple fields
+    err = db.Model(&product).Updates(Product{Price: 200, Code: "F42"}).Error
+    if err != nil {
+        panic(err)
+    }
 
-	err = db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"}).Error
-	if err != nil {
-		panic(err)
-	}
+    err = db.Model(&product).Updates(map[string]interface{}{"Price": 200, "Code": "F42"}).Error
+    if err != nil {
+        panic(err)
+    }
 
-	// Delete - delete product
-	err = db.Delete(&product, product.ID).Error
-	if err != nil {
-		panic(err)
-	}
+    // Delete - delete product
+    err = db.Delete(&product, product.ID).Error
+    if err != nil {
+        panic(err)
+    }
 }
 ```
 
 ### Open with Immudb Options
 It's possible open a connection with immudb options to provide more control over the connection or enable some features that are not available by standard DSN.
 ```go
-    import (
-        "github.com/codenotary/immudb/pkg/client"
-        immugorm "github.com/codenotary/immugorm"
-        "gorm.io/gorm"
-        "gorm.io/gorm/logger"
-    )
+import (
+    "github.com/codenotary/immudb/pkg/client"
+    immugorm "github.com/codenotary/immugorm"
+    "gorm.io/gorm"
+    "gorm.io/gorm/logger"
+)
 
-    ...
+...
 
-    opts := client.DefaultOptions()
+opts := client.DefaultOptions()
 
-    opts.Username = "immudb"
-    opts.Password = "immudb"
-    opts.Database = "defaultdb"
-    opts.HealthCheckRetries = 10
+opts.Username = "immudb"
+opts.Password = "immudb"
+opts.Database = "defaultdb"
+opts.HealthCheckRetries = 10
 
-    db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
-        Logger: logger.Default.LogMode(logger.Info),
-    })
+db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
+    Logger: logger.Default.LogMode(logger.Info),
+})
 ```
 
 ## IMMUDB SPECIAL FEATURES
