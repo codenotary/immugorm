@@ -46,7 +46,7 @@ func TestTimeTravelQuery(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{})
+	db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{})
 	require.NoError(t, err)
 
 	// Migrate the schema

@@ -4,7 +4,7 @@ The [immudb](https://github.com/codenotary/immudb) gorm driver
 ## Quick Start
 Clone immudb repository, compile immudb and launch it:
 ```shell
-git clone --depth=1 --branch feat/immugorm https://github.com/codenotary/immudb
+git clone https://github.com/codenotary/immudb
 make immudb
 ./immudb
 ```
@@ -14,27 +14,20 @@ Here an example
 package main
 
 import (
-	"github.com/codenotary/immudb/pkg/client"
-	immugorm "github.com/codenotary/immugorm"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+    immugorm "github.com/codenotary/immugorm"
+    "gorm.io/gorm"
+    "gorm.io/gorm/logger"
 )
 
 type Product struct {
-	ID     int `gorm:"primarykey"`
-	Code   string
-	Price  uint
-	Amount uint
+    ID     int `gorm:"primarykey"`
+    Code   string
+    Price  uint
+    Amount uint
 }
 
 func main() {
-	opts := client.DefaultOptions()
-
-	opts.Username = "immudb"
-	opts.Password = "immudb"
-	opts.Database = "defaultdb"
-
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
+	db, err := gorm.Open(immugorm.Open("immudb://immudb:immudb@127.0.0.1:3322/defaultdb?sslmode=disable", &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {

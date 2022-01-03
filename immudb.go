@@ -46,7 +46,15 @@ type Dialector struct {
 	DSN        string
 }
 
-func Open(opts *client.Options, cfg *ImmuGormConfig) gorm.Dialector {
+func Open(dsn string, cfg *ImmuGormConfig) gorm.Dialector {
+	return &Dialector{
+		DriverName: DriverName,
+		cfg:        cfg,
+		DSN:        dsn,
+	}
+}
+
+func OpenWithOptions(opts *client.Options, cfg *ImmuGormConfig) gorm.Dialector {
 	if opts == nil {
 		opts = client.DefaultOptions()
 	}

@@ -56,7 +56,7 @@ func TestBase(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{
+	db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: true}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	require.NoError(t, err)
@@ -95,6 +95,55 @@ func TestBase(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestMultiInsert(t *testing.T) {
+	type Product struct {
+		ID     uint `gorm:"primarykey"`
+		Code   string
+		Price  uint
+		Amount uint
+	}
+
+	options := server.DefaultOptions()
+	bs := servertest.NewBufconnServer(options)
+
+	bs.Start()
+	defer bs.Stop()
+
+	defer os.RemoveAll(options.Dir)
+	defer os.Remove(".state-")
+
+	opts := client.DefaultOptions().WithDialOptions(
+		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
+	)
+
+	opts.Username = "immudb"
+	opts.Password = "immudb"
+	opts.Database = "defaultdb"
+
+	db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	require.NoError(t, err)
+
+	// Migrate the schema
+	err = db.AutoMigrate(&Product{})
+	require.NoError(t, err)
+
+	// Create
+	err = db.Create([]*Product{{Code: "D1", Price: 100, Amount: 100}, {Code: "D2", Price: 200, Amount: 200}}).Error
+	require.NoError(t, err)
+
+	// Read
+	var product1 Product
+
+	err = db.First(&product1, "code = ?", "D2").Error
+	require.NoError(t, err)
+
+	var product2 Product
+	err = db.First(&product2, "code = ?", "D1").Error
+	require.NoError(t, err)
+}
+
 func TestMigrationWithPreviousData(t *testing.T) {
 	type Product struct {
 		ID     uint `gorm:"primarykey"`
@@ -120,7 +169,7 @@ func TestMigrationWithPreviousData(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{})
+	db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{})
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(&Product{})
@@ -161,7 +210,7 @@ func TestTypes(t *testing.T) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immugorm.Open(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
+	db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	require.NoError(t, err)

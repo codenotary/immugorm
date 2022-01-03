@@ -40,7 +40,7 @@ func OpenDB() (*gorm.DB, func(), error) {
 	opts.Password = "immudb"
 	opts.Database = "defaultdb"
 
-	db, err := gorm.Open(immudb.Open(opts, &immudb.ImmuGormConfig{Verify: false}), &gorm.Config{
+	db, err := gorm.Open(immudb.OpenWithOptions(opts, &immudb.ImmuGormConfig{Verify: false}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {

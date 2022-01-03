@@ -47,7 +47,6 @@ func TestManyToMany(t *testing.T) {
 
 	user := &Usr{
 		Name: "it-en-fr",
-		//Languages: []Lang{{Name: "it"}, {Name: "en"}, {Name: "fr"}},
 	}
 
 	err = db.Create(user).Error
@@ -70,15 +69,10 @@ func TestManyToMany(t *testing.T) {
 		Name: "fr",
 	})
 
-	/*langsRes := db.Find(&Lang{})
-	require.NotNil(t, langsRes)*/
-
-	/*var langs []*Lang
-	langsRes.Scan(langs)*/
 	var user3 Usr
 	err = db.Find(&user3, "id = ?", user.ID).Error
 	require.NoError(t, err)
-	// missing JOIN alias for INNER JOIN
+
 	err = db.Model(&user2).Association("Languages").Find(&user2.Languages)
 	require.NoError(t, err)
 	require.Len(t, user2.Languages, 2)
