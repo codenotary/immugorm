@@ -21,12 +21,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/codenotary/immudb/pkg/client"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/migrator"
-	"strings"
 )
 
 type Migrator struct {
@@ -130,8 +131,8 @@ func (m Migrator) HasColumn(value interface{}, name string) bool {
 			if er != nil {
 				return er
 			}
-			for _, v := range resp.Columns {
-				if v.Name == name {
+			for _, v := range resp.Rows {
+				if v.Values[0].GetS() == name {
 					count = 1
 				}
 			}

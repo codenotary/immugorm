@@ -18,6 +18,10 @@ package tests
 
 import (
 	"bytes"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/codenotary/immudb/pkg/client"
 	"github.com/codenotary/immudb/pkg/server"
 	"github.com/codenotary/immudb/pkg/server/servertest"
@@ -26,9 +30,6 @@ import (
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestBase(t *testing.T) {
@@ -180,6 +181,41 @@ func TestMigrationWithPreviousData(t *testing.T) {
 
 	err = db.AutoMigrate(&Product{})
 	require.NoError(t, err)
+}
+
+func TestHasColumn(t *testing.T) {
+	type Product struct {
+		ID     uint `gorm:"primarykey"`
+		Code   string
+		Price  uint
+		Amount uint
+	}
+
+	options := server.DefaultOptions()
+	bs := servertest.NewBufconnServer(options)
+
+	bs.Start()
+	defer bs.Stop()
+
+	defer os.RemoveAll(options.Dir)
+	defer os.Remove(".state-")
+
+	opts := client.DefaultOptions().WithDialOptions(
+		[]grpc.DialOption{grpc.WithContextDialer(bs.Dialer), grpc.WithInsecure()},
+	)
+
+	opts.Username = "immudb"
+	opts.Password = "immudb"
+	opts.Database = "defaultdb"
+
+	db, err := gorm.Open(immugorm.OpenWithOptions(opts, &immugorm.ImmuGormConfig{Verify: false}), &gorm.Config{})
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(&Product{})
+	require.NoError(t, err)
+
+	hasAmount := db.Migrator().HasColumn(&Product{}, "amount")
+	require.Equal(t, true, hasAmount)
 }
 
 type Entity struct {
